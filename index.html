@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFMap — Indoor RF Analysis</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&display=swap');
+
+  :root {
+    --bg: #0a0d12;
+    --surface: #10141c;
+    --surface2: #161c28;
+    --border: #1e2a3a;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --text: #c8d8e8;
+    --text-dim: #5a7080;
+    --danger: #ff3366;
+    --warn: #ffd700;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow', sans-serif;
+    --cond: 'Barlow Condensed', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 28px; height: 28px;
+    position: relative;
+  }
+  .logo-icon svg { width: 100%; height: 100%; }
+  .logo-text {
+    font-family: var(--cond);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .logo-sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+  .header-stats {
+    display: flex;
+    gap: 24px;
+  }
+  .hstat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .hstat-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+  .hstat-val { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .header-actions { display: flex; gap: 8px; }
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.07); }
+  .btn.primary:hover { background: rgba(0,229,255,0.15); }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+
+  /* LAYOUT */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* LEFT PANEL */
+  .panel-left {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px;
+  }
+  .panel-section-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .panel-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ACCESS POINT LIST */
+  .ap-list { display: flex; flex-direction: column; gap: 6px; }
+  .ap-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .ap-item:hover { border-color: var(--accent); }
+  .ap-item.selected { border-color: var(--accent); background: rgba(0,229,255,0.06); }
+  .ap-item-header { display: flex; justify-content: space-between; align-items: center; }
+  .ap-name { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+  .ap-freq { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+  .ap-detail { margin-top: 4px; display: flex; gap: 10px; }
+  .ap-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 5px;
+    border: 1px solid;
+    letter-spacing: 1px;
+  }
+  .ap-badge.wifi { color: var(--accent); border-color: var(--accent); }
+  .ap-badge.bt { color: #a78bfa; border-color: #a78bfa; }
+  .ap-badge.zwave { color: var(--accent3); border-color: var(--accent3); }
+  .ap-remove {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 16px; height: 16px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 12px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .ap-item:hover .ap-remove { display: flex; }
+  .ap-remove:hover { color: var(--danger); }
+
+  /* CONTROLS */
+  .control-group { margin-bottom: 10px; }
+  .control-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .control-label span { color: var(--accent); }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+  }
+  select:focus { border-color: var(--accent); }
+  option { background: var(--surface2); }
+
+  /* MATERIAL LIST */
+  .material-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+  .mat-btn {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+  .mat-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .mat-btn.active { border-color: var(--accent2); color: var(--accent2); background: rgba(255,107,53,0.08); }
+
+  /* LEGEND */
+  .legend-bar {
+    height: 12px;
+    border-radius: 2px;
+    background: linear-gradient(to right, #000080, #0000ff, #00ffff, #00ff00, #ffff00, #ff8000, #ff0000);
+    margin: 6px 0;
+  }
+  .legend-labels { display: flex; justify-content: space-between; }
+  .legend-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); }
+
+  /* MEASUREMENT */
+  .measurement-panel { flex: 1; overflow-y: auto; padding: 12px 14px; }
+  .meas-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .meas-key { color: var(--text-dim); }
+  .meas-val { color: var(--accent); }
+  .meas-val.bad { color: var(--danger); }
+  .meas-val.ok { color: var(--warn); }
+  .meas-val.good { color: var(--accent3); }
+
+  /* CENTER CANVAS */
+  .canvas-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(30,42,58,0.5) 30px),
+      repeating-linear-gradient(90deg, transparent, transparent 29px, rgba(30,42,58,0.5) 30px),
+      var(--bg);
+  }
+
+  #mainCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    cursor: crosshair;
+  }
+  #heatCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    opacity: 0.75;
+  }
+  #overlayCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  /* DROP ZONE */
+  .drop-zone {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 10;
+  }
+  .drop-box {
+    border: 2px dashed var(--border);
+    padding: 40px 60px;
+    text-align: center;
+    transition: all 0.2s;
+    background: rgba(10,13,18,0.85);
+  }
+  .drop-box:hover, .drop-box.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.04);
+  }
+  .drop-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+  .drop-title { font-family: var(--cond); font-size: 22px; font-weight: 600; letter-spacing: 3px; color: var(--text); margin-bottom: 6px; }
+  .drop-sub { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 16px; }
+  .drop-or { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin: 8px 0; }
+
+  /* TOOLBAR */
+  .toolbar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 20;
+  }
+  .tool-btn {
+    width: 36px; height: 36px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .tool-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tool-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.1); }
+  .tool-btn .tooltip {
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    letter-spacing: 1px;
+  }
+  .tool-btn:hover .tooltip { opacity: 1; }
+
+  /* RIGHT PANEL */
+  .panel-right {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* CHANNEL ANALYZER */
+  .channel-bars { padding: 8px 0; }
+  .channel-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .channel-num { font-family: var(--mono); font-size: 9px; color: var(--text-dim); width: 20px; text-align: right; }
+  .channel-bar-bg { flex: 1; height: 8px; background: var(--bg); position: relative; }
+  .channel-bar-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    transition: width 0.3s;
+  }
+  .channel-dbm { font-family: var(--mono); font-size: 9px; color: var(--text-dim); width: 32px; text-align: right; }
+
+  /* LOG */
+  .log-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    line-height: 1.8;
+  }
+  .log-entry { color: var(--text-dim); }
+  .log-entry.info { color: var(--accent); }
+  .log-entry.warn { color: var(--warn); }
+  .log-entry.error { color: var(--danger); }
+  .log-entry.success { color: var(--accent3); }
+
+  /* SCAN OVERLAY */
+  .scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, transparent, var(--accent), transparent);
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    animation: scan 3s linear infinite;
+  }
+  @keyframes scan {
+    0% { top: 0; opacity: 0; }
+    5% { opacity: 0.8; }
+    95% { opacity: 0.8; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* STATUS BAR */
+  .statusbar {
+    height: 24px;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 20px;
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent3);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    width: 420px;
+    max-width: 90vw;
+  }
+  .modal-title {
+    font-family: var(--cond);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .form-row { margin-bottom: 12px; }
+  .form-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 4px; }
+  .form-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+  /* TOOLTIP POINT INFO */
+  .point-info {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 60;
+    display: none;
+    min-width: 180px;
+  }
+  .point-info-title { color: var(--accent); margin-bottom: 6px; letter-spacing: 1px; font-size: 10px; }
+  .point-info-row { display: flex; justify-content: space-between; gap: 20px; color: var(--text-dim); margin-bottom: 2px; }
+  .point-info-row span:last-child { color: var(--text); }
+
+  /* SCROLLBARS */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  .panel-scroll { overflow-y: auto; flex: 1; }
+
+  .freq-tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+
+  .add-ap-btn {
+    width: 100%;
+    padding: 8px;
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .add-ap-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .progress-ring {
+    transform-origin: center;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="3" fill="#00e5ff"/>
+        <circle cx="14" cy="14" r="7" stroke="#00e5ff" stroke-width="1" opacity="0.5"/>
+        <circle cx="14" cy="14" r="11" stroke="#00e5ff" stroke-width="0.5" opacity="0.25"/>
+        <line x1="14" y1="3" x2="14" y2="0" stroke="#00e5ff" stroke-width="1.5"/>
+        <line x1="0" y1="14" x2="3" y2="14" stroke="#00e5ff" stroke-width="0.8" opacity="0.4"/>
+        <line x1="25" y1="14" x2="28" y2="14" stroke="#00e5ff" stroke-width="0.8" opacity="0.4"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">RFMap</div>
+      <div class="logo-sub">Indoor RF Analysis System</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat">
+      <span class="hstat-label">ACCESS POINTS</span>
+      <span class="hstat-val" id="statAP">0</span>
+    </div>
+    <div class="hstat">
+      <span class="hstat-label">COVERAGE</span>
+      <span class="hstat-val" id="statCoverage">0%</span>
+    </div>
+    <div class="hstat">
+      <span class="hstat-label">AVG RSSI</span>
+      <span class="hstat-val" id="statRSSI">— dBm</span>
+    </div>
+    <div class="hstat">
+      <span class="hstat-label">DEAD ZONES</span>
+      <span class="hstat-val" id="statDead">0</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="exportReport()">⬇ Export Report</button>
+    <button class="btn primary" onclick="runFullSimulation()">▶ Run Simulation</button>
+  </div>
+</header>
+
+<!-- APP BODY -->
+<div class="app-body">
+
+  <!-- LEFT PANEL -->
+  <div class="panel-left">
+    <div class="panel-section">
+      <div class="panel-section-title">Access Points</div>
+      <div class="ap-list" id="apList"></div>
+      <button class="add-ap-btn" onclick="openAddAP()">+ Add Access Point</button>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-section-title">Simulation</div>
+      <div class="control-group">
+        <div class="control-label">Frequency Band <span id="freqVal">2.4 GHz</span></div>
+        <select id="freqSelect" onchange="updateFreq()">
+          <option value="2.4">2.4 GHz (802.11b/g/n)</option>
+          <option value="5">5 GHz (802.11a/ac/ax)</option>
+          <option value="6">6 GHz (802.11ax Wi-Fi 6E)</option>
+          <option value="0.9">900 MHz (Zigbee/Z-Wave)</option>
+          <option value="0.433">433 MHz (ISM Band)</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <div class="control-label">TX Power (dBm) <span id="txPowerVal">20</span></div>
+        <input type="range" id="txPower" min="1" max="30" value="20" oninput="updateTxPower()">
+      </div>
+      <div class="control-group">
+        <div class="control-label">Path Loss Exponent <span id="pleVal">3.0</span></div>
+        <input type="range" id="ple" min="2" max="5" step="0.1" value="3" oninput="updatePLE()">
+      </div>
+      <div class="control-group">
+        <div class="control-label">RSSI Threshold <span id="rssiThreshVal">-75 dBm</span></div>
+        <input type="range" id="rssiThresh" min="-90" max="-50" value="-75" oninput="updateThresh()">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-section-title">Wall Material</div>
+      <div class="material-grid" id="matGrid"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-section-title">Heatmap Legend</div>
+      <div class="legend-bar"></div>
+      <div class="legend-labels">
+        <span class="legend-label">-90 dBm</span>
+        <span class="legend-label">-70</span>
+        <span class="legend-label">-50</span>
+        <span class="legend-label">-30</span>
+      </div>
+    </div>
+
+    <div class="panel-scroll">
+      <div style="padding: 12px 14px;">
+        <div class="panel-section-title" style="margin-bottom:8px;">Point Measurements</div>
+        <div id="measurePanel">
+          <div style="font-family: var(--mono); font-size:10px; color: var(--text-dim); text-align:center; padding: 20px 0;">
+            Click canvas to measure
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CANVAS AREA -->
+  <div class="canvas-area" id="canvasArea">
+    <canvas id="mainCanvas"></canvas>
+    <canvas id="heatCanvas"></canvas>
+    <canvas id="overlayCanvas"></canvas>
+    <div class="scan-line" id="scanLine"></div>
+
+    <!-- DROP ZONE -->
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-box" id="dropBox">
+        <div class="drop-icon">📡</div>
+        <div class="drop-title">Upload Floor Plan</div>
+        <div class="drop-sub">PNG · JPG · SVG · PDF</div>
+        <div class="drop-sub" style="margin-top:4px;">Drag & drop or click to browse</div>
+        <div class="drop-or">— OR —</div>
+        <button class="btn primary" onclick="loadDemo()">Load Demo Plan</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(event)">
+      </div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar" id="toolbar" style="display:none">
+      <button class="tool-btn active" id="toolSelect" onclick="setTool('select')" title="Select">
+        ↖<span class="tooltip">SELECT / MOVE</span>
+      </button>
+      <button class="tool-btn" id="toolAP" onclick="setTool('ap')">
+        📡<span class="tooltip">PLACE ACCESS POINT</span>
+      </button>
+      <button class="tool-btn" id="toolWall" onclick="setTool('wall')">
+        ▬<span class="tooltip">DRAW WALL</span>
+      </button>
+      <button class="tool-btn" id="toolMeasure" onclick="setTool('measure')">
+        📏<span class="tooltip">MEASURE POINT</span>
+      </button>
+      <button class="tool-btn" id="toolObstacle" onclick="setTool('obstacle')">
+        ⬛<span class="tooltip">ADD OBSTACLE</span>
+      </button>
+      <div style="height:8px"></div>
+      <button class="tool-btn" onclick="zoomIn()">+<span class="tooltip">ZOOM IN</span></button>
+      <button class="tool-btn" onclick="zoomOut()">−<span class="tooltip">ZOOM OUT</span></button>
+      <button class="tool-btn" onclick="resetView()">⊙<span class="tooltip">RESET VIEW</span></button>
+      <div style="height:8px"></div>
+      <button class="tool-btn" id="toolHeat" onclick="toggleHeatmap()" title="Heatmap">
+        🌡<span class="tooltip">TOGGLE HEATMAP</span>
+      </button>
+      <button class="tool-btn" onclick="toggleChannels()">
+        📊<span class="tooltip">CHANNEL VIEW</span>
+      </button>
+    </div>
+
+    <!-- POINT INFO POPUP -->
+    <div class="point-info" id="pointInfo">
+      <div class="point-info-title">SIGNAL ANALYSIS</div>
+      <div class="point-info-row"><span>RSSI</span><span id="pi-rssi">—</span></div>
+      <div class="point-info-row"><span>Signal Quality</span><span id="pi-quality">—</span></div>
+      <div class="point-info-row"><span>Est. Throughput</span><span id="pi-throughput">—</span></div>
+      <div class="point-info-row"><span>Best AP</span><span id="pi-ap">—</span></div>
+      <div class="point-info-row"><span>Distance</span><span id="pi-dist">—</span></div>
+      <div class="point-info-row"><span>Frequency</span><span id="pi-freq">—</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+    <div class="panel-section">
+      <div class="panel-section-title">Channel Utilization</div>
+      <div class="channel-bars" id="channelBars"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-section-title">Coverage Analysis</div>
+      <div id="coverageStats" style="padding: 4px 0;">
+        <div class="meas-row"><span class="meas-key">Excellent (>-60)</span><span class="meas-val good" id="covExc">0%</span></div>
+        <div class="meas-row"><span class="meas-key">Good (-60 to -70)</span><span class="meas-val" id="covGood">0%</span></div>
+        <div class="meas-row"><span class="meas-key">Fair (-70 to -80)</span><span class="meas-val ok" id="covFair">0%</span></div>
+        <div class="meas-row"><span class="meas-key">Poor (<-80)</span><span class="meas-val bad" id="covPoor">0%</span></div>
+        <div class="meas-row"><span class="meas-key">No Signal</span><span class="meas-val bad" id="covNone">0%</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-section-title">Interference Map</div>
+      <canvas id="miniMap" width="212" height="120" style="background:var(--bg); border:1px solid var(--border); display:block;"></canvas>
+    </div>
+
+    <div style="padding: 8px 14px; border-bottom: 1px solid var(--border);">
+      <div class="panel-section-title">System Log</div>
+    </div>
+    <div class="log-area" id="logArea"></div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div class="statusbar">
+  <div class="status-dot"></div>
+  <span id="statusMsg">READY — Load a floor plan to begin analysis</span>
+  <span style="margin-left:auto;" id="statusCoords">X: — Y: —</span>
+  <span id="statusZoom">ZOOM: 100%</span>
+  <span id="statusTool">TOOL: SELECT</span>
+</div>
+
+<!-- ADD AP MODAL -->
+<div class="modal-overlay" id="addAPModal">
+  <div class="modal">
+    <div class="modal-title">Add Access Point</div>
+    <div class="form-row">
+      <div class="form-label">AP NAME / SSID</div>
+      <input class="form-input" id="apName" type="text" value="AP-01" placeholder="e.g. Office-AP-1">
+    </div>
+    <div class="form-row">
+      <div class="form-label">FREQUENCY</div>
+      <select class="form-input" id="apFreq" style="padding:7px 10px">
+        <option value="2.4">2.4 GHz</option>
+        <option value="5">5 GHz</option>
+        <option value="6">6 GHz</option>
+        <option value="0.9">900 MHz</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-label">TX POWER (dBm)</div>
+      <input class="form-input" id="apPower" type="number" value="20" min="1" max="30">
+    </div>
+    <div class="form-row">
+      <div class="form-label">ANTENNA GAIN (dBi)</div>
+      <input class="form-input" id="apGain" type="number" value="2" min="0" max="20" step="0.5">
+    </div>
+    <div class="form-row">
+      <div class="form-label">STANDARD</div>
+      <select class="form-input" id="apStandard" style="padding:7px 10px">
+        <option value="wifi">Wi-Fi 802.11 b/g/n/ac/ax</option>
+        <option value="bt">Bluetooth 5.x</option>
+        <option value="zwave">Z-Wave / Zigbee</option>
+        <option value="lte">LTE/5G Small Cell</option>
+      </select>
+    </div>
+    <div class="form-row" id="placementNote" style="font-family:var(--mono); font-size:10px; color:var(--text-dim); padding:8px; background:var(--surface2); border:1px solid var(--border);">
+      After adding, select the "Place AP" tool and click on the floor plan to position it.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="confirmAddAP()">Add & Place</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  floorPlanLoaded: false,
+  floorPlanImage: null,
+  accessPoints: [],
+  walls: [],
+  obstacles: [],
+  measurePoints: [],
+  currentTool: 'select',
+  heatmapVisible: true,
+  channelView: false,
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  dragging: false,
+  dragStart: null,
+  selectedAP: null,
+  pendingAP: null,
+  wallStart: null,
+  isSimulated: false,
+  heatData: null,
+  canvasW: 0,
+  canvasH: 0,
+  freq: 2.4,
+  txPower: 20,
+  ple: 3.0,
+  rssiThresh: -75,
+  activeMaterial: 'concrete',
+};
+
+const MATERIALS = {
+  concrete:  { label: 'Concrete',    loss: 12 },
+  drywall:   { label: 'Drywall',     loss: 3  },
+  glass:     { label: 'Glass',       loss: 2  },
+  metal:     { label: 'Metal',       loss: 18 },
+  wood:      { label: 'Wood',        loss: 4  },
+  brick:     { label: 'Brick',       loss: 8  },
+  foliage:   { label: 'Foliage',     loss: 6  },
+};
+
+let apCounter = 1;
+let logEntries = [];
+
+// ============================================================
+// CANVAS SETUP
+// ============================================================
+const canvasArea = document.getElementById('canvasArea');
+const mainCanvas = document.getElementById('mainCanvas');
+const heatCanvas = document.getElementById('heatCanvas');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const mainCtx = mainCanvas.getContext('2d');
+const heatCtx = heatCanvas.getContext('2d');
+const overlayCtx = overlayCanvas.getContext('2d');
+
+function resizeCanvases() {
+  const w = canvasArea.clientWidth;
+  const h = canvasArea.clientHeight;
+  [mainCanvas, heatCanvas, overlayCanvas].forEach(c => { c.width = w; c.height = h; });
+  state.canvasW = w;
+  state.canvasH = h;
+  render();
+}
+
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+
+// ============================================================
+// MATERIALS
+// ============================================================
+function initMaterials() {
+  const grid = document.getElementById('matGrid');
+  grid.innerHTML = '';
+  Object.entries(MATERIALS).forEach(([key, mat]) => {
+    const b = document.createElement('button');
+    b.className = 'mat-btn' + (key === state.activeMaterial ? ' active' : '');
+    b.textContent = mat.label;
+    b.onclick = () => {
+      state.activeMaterial = key;
+      document.querySelectorAll('.mat-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+    grid.appendChild(b);
+  });
+}
+initMaterials();
+
+// ============================================================
+// CHANNEL DISPLAY
+// ============================================================
+function initChannels() {
+  const container = document.getElementById('channelBars');
+  const channels = [1,6,11,36,40,44,48,149,153,157,161];
+  container.innerHTML = '';
+  channels.forEach(ch => {
+    const row = document.createElement('div');
+    row.className = 'channel-row';
+    const val = Math.random() * 60 + 10;
+    const color = val > 70 ? '#ff3366' : val > 40 ? '#ffd700' : '#39ff14';
+    row.innerHTML = `
+      <span class="channel-num">${ch}</span>
+      <div class="channel-bar-bg">
+        <div class="channel-bar-fill" id="ch-${ch}" style="width:${val}%; background:${color}"></div>
+      </div>
+      <span class="channel-dbm" id="chdbm-${ch}">${(-90 + val/3).toFixed(0)}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+initChannels();
+
+// Animate channels
+setInterval(() => {
+  const channels = [1,6,11,36,40,44,48,149,153,157,161];
+  channels.forEach(ch => {
+    const el = document.getElementById(`ch-${ch}`);
+    const dbmEl = document.getElementById(`chdbm-${ch}`);
+    if (!el) return;
+    const cur = parseFloat(el.style.width);
+    const next = Math.max(5, Math.min(95, cur + (Math.random()-0.5)*8));
+    const color = next > 70 ? '#ff3366' : next > 40 ? '#ffd700' : '#39ff14';
+    el.style.width = next + '%';
+    el.style.background = color;
+    if (dbmEl) dbmEl.textContent = (-90 + next/3).toFixed(0);
+  });
+}, 800);
+
+// ============================================================
+// LOGGING
+// ============================================================
+function log(msg, type='info') {
+  const area = document.getElementById('logArea');
+  const now = new Date();
+  const ts = now.toTimeString().slice(0,8);
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  entry.textContent = `[${ts}] ${msg}`;
+  area.appendChild(entry);
+  area.scrollTop = area.scrollHeight;
+  logEntries.push({ ts, msg, type });
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+function updateFreq() {
+  const sel = document.getElementById('freqSelect');
+  state.freq = parseFloat(sel.value);
+  document.getElementById('freqVal').textContent = sel.options[sel.selectedIndex].text.split(' ')[0] + ' GHz';
+  if (state.isSimulated) runFullSimulation();
+}
+function updateTxPower() {
+  state.txPower = parseInt(document.getElementById('txPower').value);
+  document.getElementById('txPowerVal').textContent = state.txPower;
+  if (state.isSimulated) runFullSimulation();
+}
+function updatePLE() {
+  state.ple = parseFloat(document.getElementById('ple').value);
+  document.getElementById('pleVal').textContent = state.ple.toFixed(1);
+  if (state.isSimulated) runFullSimulation();
+}
+function updateThresh() {
+  state.rssiThresh = parseInt(document.getElementById('rssiThresh').value);
+  document.getElementById('rssiThreshVal').textContent = state.rssiThresh + ' dBm';
+  if (state.isSimulated) runFullSimulation();
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+const dropBox = document.getElementById('dropBox');
+dropBox.addEventListener('click', () => document.getElementById('fileInput').click());
+dropBox.addEventListener('dragover', e => { e.preventDefault(); dropBox.classList.add('drag-over'); });
+dropBox.addEventListener('dragleave', () => dropBox.classList.remove('drag-over'));
+dropBox.addEventListener('drop', e => {
+  e.preventDefault();
+  dropBox.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+});
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) loadImage(file);
+}
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      state.floorPlanImage = img;
+      state.floorPlanLoaded = true;
+      document.getElementById('dropZone').style.display = 'none';
+      document.getElementById('toolbar').style.display = 'flex';
+      // Fit image
+      const scaleX = state.canvasW / img.width;
+      const scaleY = state.canvasH / img.height;
+      state.zoom = Math.min(scaleX, scaleY) * 0.9;
+      state.panX = (state.canvasW - img.width * state.zoom) / 2;
+      state.panY = (state.canvasH - img.height * state.zoom) / 2;
+      render();
+      log('Floor plan loaded: ' + img.width + '×' + img.height + 'px', 'success');
+      setStatus('Floor plan loaded. Place access points or run simulation.');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadDemo() {
+  log('Generating demo floor plan...', 'info');
+  const w = 800, h = 500;
+  const offscreen = document.createElement('canvas');
+  offscreen.width = w; offscreen.height = h;
+  const ctx = offscreen.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#f5f0e8';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 0.5;
+  for(let x=0;x<w;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+  for(let y=0;y<h;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+
+  // Outer walls
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 8;
+  ctx.strokeRect(20, 20, w-40, h-40);
+
+  // Rooms
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 4;
+  // Vertical dividers
+  ctx.beginPath(); ctx.moveTo(280,20); ctx.lineTo(280,340); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(520,20); ctx.lineTo(520,480); ctx.stroke();
+  // Horizontal divider
+  ctx.beginPath(); ctx.moveTo(20,340); ctx.lineTo(520,340); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(520,240); ctx.lineTo(780,240); ctx.stroke();
+
+  // Doors
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+  const doors = [[280,160,0],[280,380,0],[520,120,0],[520,360,0],[380,340,1],[160,340,1],[650,240,1]];
+  doors.forEach(([x,y,horiz]) => {
+    ctx.clearRect(horiz ? x-25 : x-3, horiz ? y-3 : y-25, horiz ? 50:6, horiz ? 6:50);
+    ctx.beginPath();
+    if(!horiz){ctx.arc(x,y,30,Math.PI*1.5,0);}
+    else{ctx.arc(x,y,30,Math.PI,Math.PI*1.5);}
+    ctx.stroke();
+  });
+
+  // Room labels
+  ctx.fillStyle = '#888'; ctx.font = '12px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('LOBBY', 150, 200);
+  ctx.fillText('OFFICE A', 400, 180);
+  ctx.fillText('CONFERENCE', 650, 130);
+  ctx.fillText('OFFICE B', 150, 420);
+  ctx.fillText('STORAGE', 400, 420);
+  ctx.fillText('LOUNGE', 650, 370);
+
+  // Furniture hints
+  ctx.fillStyle = '#ccc'; ctx.strokeStyle='#bbb'; ctx.lineWidth=1;
+  // Table in conference
+  ctx.fillRect(570,60,160,80); ctx.strokeRect(570,60,160,80);
+  // Desks in offices
+  for(let i=0;i<3;i++){ctx.fillRect(300+i*65,80,55,35); ctx.strokeRect(300+i*65,80,55,35);}
+
+  const img = new Image();
+  img.onload = () => {
+    state.floorPlanImage = img;
+    state.floorPlanLoaded = true;
+    document.getElementById('dropZone').style.display = 'none';
+    document.getElementById('toolbar').style.display = 'flex';
+    state.zoom = 0.9;
+    state.panX = (state.canvasW - w * state.zoom) / 2;
+    state.panY = (state.canvasH - h * state.zoom) / 2;
+
+    // Add demo APs
+    state.accessPoints = [
+      { id: 'AP-01', name: 'AP-01', x: 150, y: 180, freq: 2.4, power: 20, gain: 2, standard: 'wifi', color: '#00e5ff' },
+      { id: 'AP-02', name: 'AP-02', x: 400, y: 150, freq: 5,   power: 23, gain: 3, standard: 'wifi', color: '#39ff14' },
+      { id: 'AP-03', name: 'AP-03', x: 650, y: 110, freq: 2.4, power: 20, gain: 2, standard: 'wifi', color: '#ff6b35' },
+    ];
+    apCounter = 4;
+    updateAPList();
+    render();
+    runFullSimulation();
+    log('Demo floor plan loaded with 3 access points', 'success');
+    setStatus('Demo loaded. Simulation running...');
+  };
+  img.src = offscreen.toDataURL();
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function render() {
+  mainCtx.clearRect(0, 0, state.canvasW, state.canvasH);
+  if (!state.floorPlanLoaded) return;
+
+  mainCtx.save();
+  mainCtx.translate(state.panX, state.panY);
+  mainCtx.scale(state.zoom, state.zoom);
+
+  // Draw floor plan
+  if (state.floorPlanImage) {
+    mainCtx.globalAlpha = 0.85;
+    mainCtx.drawImage(state.floorPlanImage, 0, 0);
+    mainCtx.globalAlpha = 1;
+  }
+
+  // Draw walls
+  state.walls.forEach(wall => {
+    mainCtx.beginPath();
+    mainCtx.moveTo(wall.x1, wall.y1);
+    mainCtx.lineTo(wall.x2, wall.y2);
+    mainCtx.strokeStyle = MATERIALS[wall.material]?.label ? '#ff6b35' : '#ff6b35';
+    mainCtx.lineWidth = 4 / state.zoom;
+    mainCtx.stroke();
+    mainCtx.fillStyle = '#ff6b35';
+    mainCtx.font = `${10/state.zoom}px Share Tech Mono`;
+    mainCtx.fillText(MATERIALS[wall.material]?.label || 'Wall',
+      (wall.x1+wall.x2)/2, (wall.y1+wall.y2)/2 - 6/state.zoom);
+  });
+
+  // Draw obstacles
+  state.obstacles.forEach(ob => {
+    mainCtx.fillStyle = 'rgba(255,107,53,0.2)';
+    mainCtx.strokeStyle = '#ff6b35';
+    mainCtx.lineWidth = 1.5 / state.zoom;
+    mainCtx.fillRect(ob.x-20, ob.y-15, 40, 30);
+    mainCtx.strokeRect(ob.x-20, ob.y-15, 40, 30);
+  });
+
+  // Draw access points
+  state.accessPoints.forEach(ap => {
+    drawAP(mainCtx, ap);
+  });
+
+  // Draw measure points
+  state.measurePoints.forEach((pt, i) => {
+    mainCtx.beginPath();
+    mainCtx.arc(pt.x, pt.y, 5/state.zoom, 0, Math.PI*2);
+    mainCtx.fillStyle = '#ffd700';
+    mainCtx.fill();
+    mainCtx.strokeStyle = '#000';
+    mainCtx.lineWidth = 1/state.zoom;
+    mainCtx.stroke();
+  });
+
+  mainCtx.restore();
+
+  // Draw heatmap
+  if (state.heatmapVisible && state.heatData) {
+    renderHeatmap();
+  } else {
+    heatCtx.clearRect(0, 0, state.canvasW, state.canvasH);
+  }
+
+  updateMiniMap();
+  updateStatusZoom();
+}
+
+function drawAP(ctx, ap) {
+  const size = 10 / state.zoom;
+  const isSelected = state.selectedAP === ap.id;
+
+  // Glow rings
+  for (let r = 3; r >= 1; r--) {
+    ctx.beginPath();
+    ctx.arc(ap.x, ap.y, size * r * 1.8, 0, Math.PI * 2);
+    ctx.strokeStyle = ap.color || '#00e5ff';
+    ctx.globalAlpha = 0.06 + (isSelected ? 0.06 : 0);
+    ctx.lineWidth = 1 / state.zoom;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Icon background
+  ctx.beginPath();
+  ctx.arc(ap.x, ap.y, size, 0, Math.PI * 2);
+  ctx.fillStyle = isSelected ? (ap.color || '#00e5ff') : 'rgba(10,13,18,0.85)';
+  ctx.fill();
+  ctx.strokeStyle = ap.color || '#00e5ff';
+  ctx.lineWidth = (isSelected ? 2.5 : 1.5) / state.zoom;
+  ctx.stroke();
+
+  // Signal arcs
+  ctx.strokeStyle = ap.color || '#00e5ff';
+  ctx.lineWidth = 1.2 / state.zoom;
+  [2, 3.5].forEach((r, i) => {
+    ctx.beginPath();
+    ctx.arc(ap.x, ap.y - size * 0.5, size * r * 0.55, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.globalAlpha = 0.7 - i * 0.2;
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+
+  // Label
+  ctx.fillStyle = ap.color || '#00e5ff';
+  ctx.font = `${9/state.zoom}px Share Tech Mono`;
+  ctx.textAlign = 'center';
+  ctx.fillText(ap.name, ap.x, ap.y + size * 1.8);
+  ctx.fillText(ap.freq + 'GHz', ap.x, ap.y + size * 2.8);
+}
+
+// ============================================================
+// HEATMAP
+// ============================================================
+function computeHeatmap() {
+  if (!state.floorPlanImage || state.accessPoints.length === 0) return;
+  const resolution = 4;
+  const cols = Math.floor(state.canvasW / resolution);
+  const rows = Math.floor(state.canvasH / resolution);
+  const data = new Float32Array(cols * rows);
+
+  const imgW = state.floorPlanImage.width * state.zoom;
+  const imgH = state.floorPlanImage.height * state.zoom;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const px = c * resolution;
+      const py = r * resolution;
+      // Only inside floor plan bounds
+      if (px < state.panX || px > state.panX + imgW ||
+          py < state.panY || py > state.panY + imgH) {
+        data[r * cols + c] = -999;
+        continue;
+      }
+      // Canvas to floor plan coords
+      const fx = (px - state.panX) / state.zoom;
+      const fy = (py - state.panY) / state.zoom;
+
+      let bestRSSI = -999;
+      state.accessPoints.forEach(ap => {
+        const dx = fx - ap.x;
+        const dy = fy - ap.y;
+        const distM = Math.sqrt(dx*dx + dy*dy) * 0.05; // pixels to meters
+        if (distM < 0.1) { bestRSSI = Math.max(bestRSSI, ap.power + ap.gain - 30); return; }
+
+        // Free-space path loss
+        const fspl = 20*Math.log10(distM) + 20*Math.log10(ap.freq) + 20*Math.log10(4*Math.PI/3e8*1e9) * 0;
+        const freqFactor = 20 * Math.log10((ap.freq * 1e9 * 4 * Math.PI) / 3e8);
+        const pathLoss = freqFactor + 10 * state.ple * Math.log10(distM);
+
+        // Wall penalties (simplified: count intersecting walls)
+        let wallLoss = 0;
+        state.walls.forEach(wall => {
+          if (lineIntersectsSegment(ap.x, ap.y, fx, fy, wall.x1, wall.y1, wall.x2, wall.y2)) {
+            wallLoss += MATERIALS[wall.material]?.loss || 6;
+          }
+        });
+
+        const rssi = (ap.power || 20) + (ap.gain || 2) - pathLoss - wallLoss;
+        bestRSSI = Math.max(bestRSSI, rssi);
+      });
+      data[r * cols + c] = bestRSSI;
+    }
+  }
+  state.heatData = { data, cols, rows, resolution };
+  return data;
+}
+
+function lineIntersectsSegment(ax,ay,bx,by,cx,cy,dx,dy) {
+  const d1x=bx-ax, d1y=by-ay, d2x=dx-cx, d2y=dy-cy;
+  const cross = d1x*d2y - d1y*d2x;
+  if (Math.abs(cross) < 0.001) return false;
+  const t = ((cx-ax)*d2y - (cy-ay)*d2x) / cross;
+  const u = ((cx-ax)*d1y - (cy-ay)*d1x) / cross;
+  return t>=0 && t<=1 && u>=0 && u<=1;
+}
+
+function rssiToColor(rssi) {
+  if (rssi <= -90) return [0, 0, 80, 180];
+  if (rssi >= -30) return [255, 0, 0, 200];
+  const t = (rssi + 90) / 60;
+  if (t < 0.2) return [0, 0, Math.floor(80 + t*5*175), 180];
+  if (t < 0.4) { const s=(t-0.2)/0.2; return [0, Math.floor(s*200), 255, 185]; }
+  if (t < 0.6) { const s=(t-0.4)/0.2; return [0, Math.floor(200+s*55), Math.floor(255-s*255), 190]; }
+  if (t < 0.8) { const s=(t-0.6)/0.2; return [Math.floor(s*255), 255, 0, 195]; }
+  { const s=(t-0.8)/0.2; return [255, Math.floor(255-s*255), 0, 200]; }
+}
+
+function renderHeatmap() {
+  if (!state.heatData) return;
+  const { data, cols, rows, resolution } = state.heatData;
+  heatCtx.clearRect(0, 0, state.canvasW, state.canvasH);
+  const imgData = heatCtx.createImageData(state.canvasW, state.canvasH);
+  const pixels = imgData.data;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const rssi = data[r * cols + c];
+      if (rssi === -999) continue;
+      const [R, G, B, A] = rssiToColor(rssi);
+      for (let dy = 0; dy < resolution; dy++) {
+        for (let dx = 0; dx < resolution; dx++) {
+          const px = (c * resolution + dx);
+          const py = (r * resolution + dy);
+          if (px >= state.canvasW || py >= state.canvasH) continue;
+          const idx = (py * state.canvasW + px) * 4;
+          pixels[idx]   = R;
+          pixels[idx+1] = G;
+          pixels[idx+2] = B;
+          pixels[idx+3] = A;
+        }
+      }
+    }
+  }
+  heatCtx.putImageData(imgData, 0, 0);
+}
+
+// ============================================================
+// SIMULATION
+// ============================================================
+function runFullSimulation() {
+  if (!state.floorPlanLoaded) {
+    log('No floor plan loaded', 'warn');
+    return;
+  }
+  if (state.accessPoints.length === 0) {
+    log('No access points placed', 'warn');
+    return;
+  }
+  setStatus('Running simulation...');
+  log(`Simulating ${state.accessPoints.length} AP(s) @ ${state.freq}GHz, PLE=${state.ple}`, 'info');
+
+  document.getElementById('scanLine').style.animationPlayState = 'running';
+  computeHeatmap();
+  render();
+  analyzeStats();
+  state.isSimulated = true;
+  document.getElementById('scanLine').style.animationPlayState = 'paused';
+  log('Simulation complete', 'success');
+  setStatus('Simulation complete. Click canvas to probe signal strength.');
+}
+
+function analyzeStats() {
+  if (!state.heatData) return;
+  const { data } = state.heatData;
+  let exc=0, good=0, fair=0, poor=0, none=0, total=0, sumRSSI=0, deadCount=0;
+
+  data.forEach(v => {
+    if (v === -999) return;
+    total++;
+    if (v >= -60)      { exc++; sumRSSI+=v; }
+    else if (v >= -70) { good++; sumRSSI+=v; }
+    else if (v >= -80) { fair++; sumRSSI+=v; }
+    else if (v >= -90) { poor++; sumRSSI+=v; }
+    else               { none++; deadCount++; }
+  });
+
+  const pct = x => total ? (x/total*100).toFixed(1)+'%' : '0%';
+  document.getElementById('covExc').textContent = pct(exc);
+  document.getElementById('covGood').textContent = pct(good);
+  document.getElementById('covFair').textContent = pct(fair);
+  document.getElementById('covPoor').textContent = pct(poor);
+  document.getElementById('covNone').textContent = pct(none);
+
+  const covered = exc + good + fair + poor;
+  const coverage = total ? (covered/total*100).toFixed(0) : 0;
+  const avgRSSI = covered > 0 ? (sumRSSI/covered).toFixed(1) : '--';
+  document.getElementById('statAP').textContent = state.accessPoints.length;
+  document.getElementById('statCoverage').textContent = coverage + '%';
+  document.getElementById('statRSSI').textContent = avgRSSI + ' dBm';
+  document.getElementById('statDead').textContent = Math.round(none * state.heatData.resolution * state.heatData.resolution / 10000);
+
+  log(`Coverage: ${coverage}% | Avg RSSI: ${avgRSSI} dBm | Excellent: ${pct(exc)}`, 'success');
+}
+
+// ============================================================
+// INTERACTION
+// ============================================================
+mainCanvas.addEventListener('mousemove', onMouseMove);
+mainCanvas.addEventListener('mousedown', onMouseDown);
+mainCanvas.addEventListener('mouseup', onMouseUp);
+mainCanvas.addEventListener('wheel', onWheel);
+mainCanvas.addEventListener('click', onCanvasClick);
+
+let isDragging = false, dragSX, dragSY, panSX, panSY;
+
+function canvasToWorld(cx, cy) {
+  return { x: (cx - state.panX) / state.zoom, y: (cy - state.panY) / state.zoom };
+}
+
+function onMouseMove(e) {
+  const rect = mainCanvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const world = canvasToWorld(cx, cy);
+
+  document.getElementById('statusCoords').textContent =
+    `X: ${Math.round(world.x)} Y: ${Math.round(world.y)}`;
+
+  if (isDragging && state.currentTool === 'select') {
+    state.panX = panSX + (e.clientX - dragSX);
+    state.panY = panSY + (e.clientY - dragSY);
+    render();
+  }
+
+  // Hover probe
+  if (state.isSimulated && state.currentTool === 'measure') {
+    probeAt(cx, cy, world);
+  }
+
+  // Wall preview
+  if (state.currentTool === 'wall' && state.wallStart) {
+    overlayCtx.clearRect(0, 0, state.canvasW, state.canvasH);
+    overlayCtx.save();
+    overlayCtx.translate(state.panX, state.panY);
+    overlayCtx.scale(state.zoom, state.zoom);
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(state.wallStart.x, state.wallStart.y);
+    overlayCtx.lineTo(world.x, world.y);
+    overlayCtx.strokeStyle = '#ff6b35';
+    overlayCtx.lineWidth = 3 / state.zoom;
+    overlayCtx.setLineDash([5/state.zoom, 5/state.zoom]);
+    overlayCtx.stroke();
+    overlayCtx.setLineDash([]);
+    overlayCtx.restore();
+  }
+}
+
+function onMouseDown(e) {
+  if (state.currentTool === 'select') {
+    isDragging = true;
+    dragSX = e.clientX; dragSY = e.clientY;
+    panSX = state.panX; panSY = state.panY;
+  }
+}
+
+function onMouseUp() { isDragging = false; }
+
+function onCanvasClick(e) {
+  if (isDragging) return;
+  const rect = mainCanvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const world = canvasToWorld(cx, cy);
+
+  if (!state.floorPlanLoaded) return;
+
+  if (state.currentTool === 'ap' && state.pendingAP) {
+    state.pendingAP.x = world.x;
+    state.pendingAP.y = world.y;
+    state.accessPoints.push(state.pendingAP);
+    state.pendingAP = null;
+    updateAPList();
+    setTool('select');
+    render();
+    runFullSimulation();
+    log(`AP placed at (${Math.round(world.x)}, ${Math.round(world.y)})`, 'success');
+  } else if (state.currentTool === 'wall') {
+    if (!state.wallStart) {
+      state.wallStart = { x: world.x, y: world.y };
+      log('Wall: click endpoint', 'info');
+    } else {
+      state.walls.push({ x1: state.wallStart.x, y1: state.wallStart.y, x2: world.x, y2: world.y, material: state.activeMaterial });
+      log(`Wall added (${MATERIALS[state.activeMaterial].label}, ${MATERIALS[state.activeMaterial].loss}dB loss)`, 'success');
+      state.wallStart = null;
+      overlayCtx.clearRect(0, 0, state.canvasW, state.canvasH);
+      render();
+      if (state.isSimulated) runFullSimulation();
+    }
+  } else if (state.currentTool === 'obstacle') {
+    state.obstacles.push({ x: world.x, y: world.y });
+    render();
+    if (state.isSimulated) runFullSimulation();
+  } else if (state.currentTool === 'measure') {
+    probeAt(cx, cy, world);
+    state.measurePoints.push(world);
+    render();
+  } else if (state.currentTool === 'select') {
+    // Check if clicking AP
+    const hit = state.accessPoints.find(ap => {
+      const scx = ap.x * state.zoom + state.panX;
+      const scy = ap.y * state.zoom + state.panY;
+      return Math.hypot(cx - scx, cy - scy) < 14;
+    });
+    if (hit) {
+      state.selectedAP = state.selectedAP === hit.id ? null : hit.id;
+      render();
+      if (state.selectedAP) showAPDetails(hit);
+    }
+  }
+}
+
+function probeAt(cx, cy, world) {
+  if (!state.heatData) return;
+  const { data, cols, rows, resolution } = state.heatData;
+  const col = Math.floor(cx / resolution);
+  const row = Math.floor(cy / resolution);
+  if (col < 0 || col >= cols || row < 0 || row >= rows) return;
+  const rssi = data[row * cols + col];
+  if (rssi === -999) return;
+
+  const pi = document.getElementById('pointInfo');
+  pi.style.display = 'block';
+  pi.style.left = (cx + 12) + 'px';
+  pi.style.top = (cy - 80) + 'px';
+
+  document.getElementById('pi-rssi').textContent = rssi.toFixed(1) + ' dBm';
+  const q = rssiToQuality(rssi);
+  document.getElementById('pi-quality').textContent = q.label;
+  document.getElementById('pi-quality').style.color = q.color;
+  document.getElementById('pi-throughput').textContent = rssiToThroughput(rssi, state.freq);
+  // Best AP
+  let bestAP = null, bestRSSI = -999;
+  state.accessPoints.forEach(ap => {
+    const dx = world.x - ap.x, dy = world.y - ap.y;
+    const d = Math.sqrt(dx*dx+dy*dy)*0.05;
+    const freqFactor = 20*Math.log10((ap.freq*1e9*4*Math.PI)/3e8);
+    const pl = freqFactor + 10*state.ple*Math.log10(Math.max(0.1,d));
+    const r = ap.power + ap.gain - pl;
+    if (r > bestRSSI) { bestRSSI=r; bestAP=ap; }
+  });
+  document.getElementById('pi-ap').textContent = bestAP ? bestAP.name : '—';
+  const distPx = bestAP ? Math.hypot(world.x-bestAP.x, world.y-bestAP.y) : 0;
+  document.getElementById('pi-dist').textContent = (distPx * 0.05).toFixed(1) + ' m';
+  document.getElementById('pi-freq').textContent = state.freq + ' GHz';
+
+  // Update measure panel
+  updateMeasurePanel(rssi, q, bestAP, distPx);
+}
+
+function rssiToQuality(rssi) {
+  if (rssi >= -60) return { label: 'Excellent', color: '#39ff14' };
+  if (rssi >= -70) return { label: 'Good',      color: '#00e5ff' };
+  if (rssi >= -80) return { label: 'Fair',      color: '#ffd700' };
+  if (rssi >= -90) return { label: 'Poor',      color: '#ff6b35' };
+  return { label: 'No Signal', color: '#ff3366' };
+}
+
+function rssiToThroughput(rssi, freq) {
+  const base = freq >= 5 ? 300 : 150;
+  if (rssi >= -55) return (base * 0.9).toFixed(0) + ' Mbps';
+  if (rssi >= -65) return (base * 0.6).toFixed(0) + ' Mbps';
+  if (rssi >= -75) return (base * 0.3).toFixed(0) + ' Mbps';
+  if (rssi >= -85) return (base * 0.1).toFixed(0) + ' Mbps';
+  return '< 1 Mbps';
+}
+
+function updateMeasurePanel(rssi, q, ap, distPx) {
+  const div = document.getElementById('measurePanel');
+  div.innerHTML = `
+    <div class="meas-row"><span class="meas-key">RSSI</span><span class="meas-val">${rssi.toFixed(1)} dBm</span></div>
+    <div class="meas-row"><span class="meas-key">Quality</span><span class="meas-val" style="color:${q.color}">${q.label}</span></div>
+    <div class="meas-row"><span class="meas-key">Throughput</span><span class="meas-val">${rssiToThroughput(rssi, state.freq)}</span></div>
+    <div class="meas-row"><span class="meas-key">Best AP</span><span class="meas-val">${ap ? ap.name : '—'}</span></div>
+    <div class="meas-row"><span class="meas-key">Distance</span><span class="meas-val">${(distPx*0.05).toFixed(1)} m</span></div>
+    <div class="meas-row"><span class="meas-key">Path Loss</span><span class="meas-val">${(ap ? ap.power + ap.gain - rssi : 0).toFixed(1)} dB</span></div>
+    <div class="meas-row"><span class="meas-key">Frequency</span><span class="meas-val">${state.freq} GHz</span></div>
+  `;
+}
+
+function showAPDetails(ap) {
+  const div = document.getElementById('measurePanel');
+  div.innerHTML = `
+    <div style="font-family:var(--mono);font-size:10px;color:var(--accent);margin-bottom:8px;">${ap.name}</div>
+    <div class="meas-row"><span class="meas-key">Frequency</span><span class="meas-val">${ap.freq} GHz</span></div>
+    <div class="meas-row"><span class="meas-key">TX Power</span><span class="meas-val">${ap.power} dBm</span></div>
+    <div class="meas-row"><span class="meas-key">Antenna Gain</span><span class="meas-val">${ap.gain} dBi</span></div>
+    <div class="meas-row"><span class="meas-key">EIRP</span><span class="meas-val">${ap.power + ap.gain} dBm</span></div>
+    <div class="meas-row"><span class="meas-key">Standard</span><span class="meas-val">${ap.standard}</span></div>
+    <div class="meas-row"><span class="meas-key">Position</span><span class="meas-val">(${Math.round(ap.x)}, ${Math.round(ap.y)})</span></div>
+    <div style="margin-top:10px;">
+      <button class="btn danger" onclick="removeAP('${ap.id}')" style="width:100%;font-size:10px;">Remove AP</button>
+    </div>
+  `;
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const rect = mainCanvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const cy = e.clientY - rect.top;
+  const delta = e.deltaY > 0 ? 0.85 : 1.15;
+  const newZoom = Math.max(0.2, Math.min(5, state.zoom * delta));
+  state.panX = cx - (cx - state.panX) * (newZoom / state.zoom);
+  state.panY = cy - (cy - state.panY) * (newZoom / state.zoom);
+  state.zoom = newZoom;
+  if (state.isSimulated) computeHeatmap();
+  render();
+}
+
+// ============================================================
+// TOOLS
+// ============================================================
+function setTool(tool) {
+  state.currentTool = tool;
+  state.wallStart = null;
+  overlayCtx.clearRect(0, 0, state.canvasW, state.canvasH);
+  document.getElementById('pointInfo').style.display = 'none';
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1));
+  if (btn) btn.classList.add('active');
+  document.getElementById('statusTool').textContent = 'TOOL: ' + tool.toUpperCase();
+  mainCanvas.style.cursor = tool === 'select' ? 'grab' :
+    tool === 'ap' ? 'crosshair' :
+    tool === 'wall' ? 'crosshair' : 'crosshair';
+}
+
+function zoomIn() { state.zoom = Math.min(5, state.zoom * 1.2); if (state.isSimulated) computeHeatmap(); render(); }
+function zoomOut() { state.zoom = Math.max(0.2, state.zoom * 0.85); if (state.isSimulated) computeHeatmap(); render(); }
+function resetView() {
+  if (state.floorPlanImage) {
+    const scaleX = state.canvasW / state.floorPlanImage.width;
+    const scaleY = state.canvasH / state.floorPlanImage.height;
+    state.zoom = Math.min(scaleX, scaleY) * 0.9;
+    state.panX = (state.canvasW - state.floorPlanImage.width * state.zoom) / 2;
+    state.panY = (state.canvasH - state.floorPlanImage.height * state.zoom) / 2;
+    if (state.isSimulated) computeHeatmap();
+    render();
+  }
+}
+
+function toggleHeatmap() {
+  state.heatmapVisible = !state.heatmapVisible;
+  document.getElementById('toolHeat').classList.toggle('active', state.heatmapVisible);
+  render();
+}
+
+function toggleChannels() {
+  log('Channel view toggled', 'info');
+}
+
+function updateStatusZoom() {
+  document.getElementById('statusZoom').textContent = 'ZOOM: ' + Math.round(state.zoom * 100) + '%';
+}
+
+// ============================================================
+// AP MANAGEMENT
+// ============================================================
+function updateAPList() {
+  const list = document.getElementById('apList');
+  list.innerHTML = '';
+  state.accessPoints.forEach(ap => {
+    const div = document.createElement('div');
+    div.className = 'ap-item' + (state.selectedAP === ap.id ? ' selected' : '');
+    div.innerHTML = `
+      <div class="ap-item-header">
+        <span class="ap-name">${ap.name}</span>
+        <span class="ap-freq">${ap.freq} GHz</span>
+      </div>
+      <div class="ap-detail">
+        <span class="ap-badge ${ap.standard}">${ap.standard.toUpperCase()}</span>
+        <span class="ap-badge" style="color:var(--text-dim);border-color:var(--border)">${ap.power}dBm</span>
+      </div>
+      <button class="ap-remove" onclick="removeAP('${ap.id}')">×</button>
+    `;
+    div.onclick = (e) => {
+      if (e.target.classList.contains('ap-remove')) return;
+      state.selectedAP = state.selectedAP === ap.id ? null : ap.id;
+      updateAPList();
+      render();
+      if (state.selectedAP) showAPDetails(ap);
+    };
+    list.appendChild(div);
+  });
+  document.getElementById('statAP').textContent = state.accessPoints.length;
+}
+
+function removeAP(id) {
+  state.accessPoints = state.accessPoints.filter(a => a.id !== id);
+  state.selectedAP = null;
+  updateAPList();
+  render();
+  if (state.isSimulated) runFullSimulation();
+  log(`AP ${id} removed`, 'warn');
+}
+
+// ============================================================
+// ADD AP MODAL
+// ============================================================
+const COLORS = ['#00e5ff','#39ff14','#ff6b35','#ff3366','#ffd700','#a78bfa','#f472b6'];
+let apColorIdx = 0;
+
+function openAddAP() {
+  const n = apCounter;
+  document.getElementById('apName').value = `AP-${String(n).padStart(2,'0')}`;
+  document.getElementById('addAPModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('addAPModal').classList.remove('open');
+}
+function confirmAddAP() {
+  const ap = {
+    id: 'AP-' + apCounter,
+    name: document.getElementById('apName').value || 'AP-' + apCounter,
+    x: 100, y: 100,
+    freq: parseFloat(document.getElementById('apFreq').value),
+    power: parseInt(document.getElementById('apPower').value),
+    gain: parseFloat(document.getElementById('apGain').value),
+    standard: document.getElementById('apStandard').value,
+    color: COLORS[apColorIdx % COLORS.length],
+  };
+  apColorIdx++;
+  apCounter++;
+  state.pendingAP = ap;
+  closeModal();
+  setTool('ap');
+  log(`Ready to place ${ap.name} — click on floor plan`, 'info');
+  setStatus('Click on floor plan to place: ' + ap.name);
+}
+
+// ============================================================
+// MINI MAP
+// ============================================================
+function updateMiniMap() {
+  const mini = document.getElementById('miniMap');
+  const ctx = mini.getContext('2d');
+  ctx.clearRect(0, 0, 212, 120);
+  if (!state.heatData || !state.floorPlanImage) return;
+
+  const sx = 212 / state.canvasW;
+  const sy = 120 / state.canvasH;
+
+  // Downscale heatmap
+  const { data, cols, rows, resolution } = state.heatData;
+  for (let r = 0; r < rows; r += 2) {
+    for (let c = 0; c < cols; c += 2) {
+      const v = data[r * cols + c];
+      if (v === -999) continue;
+      const [R,G,B,A] = rssiToColor(v);
+      ctx.fillStyle = `rgba(${R},${G},${B},${A/255})`;
+      ctx.fillRect(
+        (c * resolution) * sx, (r * resolution) * sy,
+        resolution*2*sx, resolution*2*sy
+      );
+    }
+  }
+
+  // AP dots
+  state.accessPoints.forEach(ap => {
+    const mx = (ap.x * state.zoom + state.panX) * sx;
+    const my = (ap.y * state.zoom + state.panY) * sy;
+    ctx.beginPath();
+    ctx.arc(mx, my, 3, 0, Math.PI*2);
+    ctx.fillStyle = ap.color || '#00e5ff';
+    ctx.fill();
+  });
+
+  // Viewport rect
+  ctx.strokeStyle = 'rgba(0,229,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, 212, 120);
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportReport() {
+  if (!state.floorPlanLoaded) { log('No data to export', 'warn'); return; }
+  const lines = [];
+  lines.push('RFMap Indoor Analysis Report');
+  lines.push('Generated: ' + new Date().toLocaleString());
+  lines.push('='.repeat(50));
+  lines.push('\nACCESS POINTS');
+  state.accessPoints.forEach(ap => {
+    lines.push(`  ${ap.name}: ${ap.freq}GHz, ${ap.power}dBm TX, ${ap.gain}dBi gain`);
+  });
+  lines.push('\nSIMULATION PARAMETERS');
+  lines.push(`  Frequency: ${state.freq} GHz`);
+  lines.push(`  Path Loss Exponent: ${state.ple}`);
+  lines.push(`  TX Power: ${state.txPower} dBm`);
+  lines.push(`  RSSI Threshold: ${state.rssiThresh} dBm`);
+  lines.push('\nCOVERAGE STATISTICS');
+  lines.push(`  Excellent (>-60dBm): ${document.getElementById('covExc').textContent}`);
+  lines.push(`  Good (-60 to -70): ${document.getElementById('covGood').textContent}`);
+  lines.push(`  Fair (-70 to -80): ${document.getElementById('covFair').textContent}`);
+  lines.push(`  Poor (<-80dBm): ${document.getElementById('covPoor').textContent}`);
+  lines.push('\nSYSTEM LOG');
+  logEntries.forEach(e => lines.push(`  [${e.ts}] ${e.msg}`));
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rfmap-report.txt';
+  a.click();
+  log('Report exported', 'success');
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+// Init log
+log('RFMap system initialized', 'success');
+log('Load a floor plan to begin RF analysis', 'info');
+log('Place APs, draw walls, and run simulation', 'info');
+</script>
+</body>
+</html>
